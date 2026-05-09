@@ -152,9 +152,8 @@
     body.game .section-label.learn{display:none}
     body.learn .gamebar{display:none}
 
-    /* 셔플 애니메이션 — FLIP 패턴 */
+    /* 셔플 애니메이션 — FLIP 패턴 (duration은 JS에서 동적 주입) */
     .card.flip-anim{
-      transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 10;
     }
     .card.flip-lift{
@@ -302,14 +301,11 @@
       return a;
     }
 
-    // FLIP 셔플 애니메이션 (한 단계)
-    function flipShuffle(targetOrder){
+    // FLIP 셔플 애니메이션 (한 단계, duration ms)
+    function flipShuffle(targetOrder, duration = 1000){
       return new Promise(resolve => {
-        // First — 현재 위치 기록
         const oldRects = new Map(cards.map(c => [c, c.getBoundingClientRect()]));
-        // Last — DOM 순서 변경
         targetOrder.forEach(c => grid.appendChild(c));
-        // Invert — 새 위치 기준으로 옛 위치까지 즉시 이동
         cards.forEach(c => {
           const o = oldRects.get(c);
           const n = c.getBoundingClientRect();
@@ -319,21 +315,19 @@
           c.style.transform = `translate(${dx}px, ${dy}px) scale(0.96)`;
           c.classList.add('flip-lift');
         });
-        // force reflow
         void grid.offsetHeight;
-        // Play — transition + 원위치
         cards.forEach(c => {
           c.classList.add('flip-anim');
+          c.style.transition = `transform ${duration}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
           c.style.transform = '';
         });
-        // 정리
         setTimeout(() => {
           cards.forEach(c => {
             c.style.transition = '';
             c.classList.remove('flip-anim','flip-lift');
           });
           resolve();
-        }, 720);
+        }, duration + 30);
       });
     }
 
@@ -348,14 +342,17 @@
         const old = c.querySelector('.answer'); if(old) old.remove();
       });
       document.getElementById('scoreboard').style.display = 'none';
-      document.getElementById('status').textContent = '🎲 카드를 섞고 있어요...';
       window.scrollTo({top:0, behavior:'smooth'});
 
-      // 두 번 연속 셔플 (애니메이션 풍부)
-      const step1 = shuffle(originalOrder);
-      await flipShuffle(step1);
-      const step2 = shuffle(step1);
-      await flipShuffle(step2);
+      // 5단계 셔플 × 1초 = 5초 애니메이션
+      const STEPS = 5, DUR = 1000;
+      let prev = originalOrder;
+      for (let i = 0; i < STEPS; i++){
+        document.getElementById('status').textContent = `🎲 카드를 섞고 있어요... ${i+1}/${STEPS}`;
+        const next = shuffle(prev);
+        await flipShuffle(next, DUR);
+        prev = next;
+      }
 
       document.body.classList.remove('shuffling');
       document.getElementById('status').textContent = '🎮 1번이라고 생각하는 카드를 눌러요';
@@ -445,8 +442,14 @@
         // 진행 상태
         const remain = 8 - pickOrder.length;
         if(remain === 0){
-          // 자동 채점
-          setTimeout(checkAnswers, 250);
+          // 즉시 lock 후 자동 채점 (사이 클릭 차단)
+          checked = true;
+          document.body.classList.add('shuffling');
+          document.getElementById('status').textContent = '✨ 채점 중...';
+          setTimeout(() => {
+            document.body.classList.remove('shuffling');
+            checkAnswers();
+          }, 350);
         } else {
           document.getElementById('status').textContent = `🎮 ${pickOrder.length}/8 — ${pickOrder.length+1}번이라고 생각하는 카드를 눌러요`;
         }
