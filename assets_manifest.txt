@@ -1,0 +1,2 @@
+# genesis-hub은 거시 게임의 8 panel을 thumbnail로 재사용
+# (genesis-8-stories/assets/images/*.jpg에서 복사)
