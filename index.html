@@ -151,6 +151,17 @@
     body.game .macro{display:none}
     body.game .section-label.learn{display:none}
     body.learn .gamebar{display:none}
+
+    /* 셔플 애니메이션 — FLIP 패턴 */
+    .card.flip-anim{
+      transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 10;
+    }
+    .card.flip-lift{
+      box-shadow: 0 22px 38px rgba(0,0,0,0.22);
+    }
+    body.shuffling .card{cursor:wait}
+    body.shuffling .grid{pointer-events:none}
   </style>
 </head>
 <body class="learn">
@@ -291,35 +302,77 @@
       return a;
     }
 
-    function startGame(){
-      document.body.classList.remove('learn');
-      document.body.classList.add('game');
-      document.body.classList.remove('checked');
+    // FLIP 셔플 애니메이션 (한 단계)
+    function flipShuffle(targetOrder){
+      return new Promise(resolve => {
+        // First — 현재 위치 기록
+        const oldRects = new Map(cards.map(c => [c, c.getBoundingClientRect()]));
+        // Last — DOM 순서 변경
+        targetOrder.forEach(c => grid.appendChild(c));
+        // Invert — 새 위치 기준으로 옛 위치까지 즉시 이동
+        cards.forEach(c => {
+          const o = oldRects.get(c);
+          const n = c.getBoundingClientRect();
+          const dx = o.left - n.left;
+          const dy = o.top - n.top;
+          c.style.transition = 'none';
+          c.style.transform = `translate(${dx}px, ${dy}px) scale(0.96)`;
+          c.classList.add('flip-lift');
+        });
+        // force reflow
+        void grid.offsetHeight;
+        // Play — transition + 원위치
+        cards.forEach(c => {
+          c.classList.add('flip-anim');
+          c.style.transform = '';
+        });
+        // 정리
+        setTimeout(() => {
+          cards.forEach(c => {
+            c.style.transition = '';
+            c.classList.remove('flip-anim','flip-lift');
+          });
+          resolve();
+        }, 720);
+      });
+    }
+
+    async function startGame(){
+      document.body.classList.remove('learn','checked');
+      document.body.classList.add('game','shuffling');
       pickOrder = [];
       checked = false;
-      const shuffled = shuffle(originalOrder);
-      shuffled.forEach(c => grid.appendChild(c));
       cards.forEach(c => {
         c.classList.remove('picked','ok','wrong');
         const pick = c.querySelector('.pick'); pick.textContent = '';
         const old = c.querySelector('.answer'); if(old) old.remove();
       });
       document.getElementById('scoreboard').style.display = 'none';
-      document.getElementById('status').textContent = '🎮 1번이라고 생각하는 카드를 눌러요';
+      document.getElementById('status').textContent = '🎲 카드를 섞고 있어요...';
       window.scrollTo({top:0, behavior:'smooth'});
+
+      // 두 번 연속 셔플 (애니메이션 풍부)
+      const step1 = shuffle(originalOrder);
+      await flipShuffle(step1);
+      const step2 = shuffle(step1);
+      await flipShuffle(step2);
+
+      document.body.classList.remove('shuffling');
+      document.getElementById('status').textContent = '🎮 1번이라고 생각하는 카드를 눌러요';
     }
 
-    function exitGame(){
-      document.body.classList.remove('game');
+    async function exitGame(){
       document.body.classList.remove('checked');
-      document.body.classList.add('learn');
-      // 원래 순서로 복귀
-      originalOrder.forEach(c => grid.appendChild(c));
       cards.forEach(c => {
         c.classList.remove('picked','ok','wrong');
         const pick = c.querySelector('.pick'); pick.textContent = '';
         const old = c.querySelector('.answer'); if(old) old.remove();
       });
+      // 학습 모드로 부드럽게 정렬
+      document.body.classList.add('shuffling');
+      await flipShuffle(originalOrder);
+      document.body.classList.remove('game','shuffling');
+      document.body.classList.add('learn');
     }
 
     function reshuffle(){
