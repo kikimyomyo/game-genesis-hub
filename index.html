@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>창세기 학습 게임 — 거시 + 미시</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{min-height:100%}
@@ -98,33 +99,33 @@
       margin-top:6px;font-size:0.8em;color:#6366f1;font-weight:800;
     }
 
-    /* 게임 모드: 카드 위에 사용자 선택 번호 큰 라벨 */
+    /* 게임 모드: 카드 위에 자리 번호 라벨 (1~8 위치) */
     body.game .card .card-num{display:none}     /* 정답 번호 숨김 */
     body.game .card .card-cta{display:none}     /* CTA 숨김 */
-    body.game .card{cursor:pointer}
-    .pick{
-      position:absolute;top:8px;right:8px;
-      width:42px;height:42px;border-radius:50%;
-      background:#6366f1;color:white;
+    .slot-label{
+      position:absolute;top:8px;left:8px;
+      width:38px;height:38px;border-radius:50%;
+      background:#475569;color:white;
       display:none;align-items:center;justify-content:center;
-      font-size:1.4em;font-weight:900;
-      box-shadow:0 4px 10px rgba(99,102,241,0.4);
-      animation:pop 0.2s;
+      font-size:1.2em;font-weight:900;
+      box-shadow:0 3px 8px rgba(0,0,0,0.18);
+      z-index:5;
     }
-    @keyframes pop{from{transform:scale(0.5)}to{transform:scale(1)}}
-    .card.picked .pick{display:flex}
+    body.game .card .slot-label{display:flex}
 
     /* 채점 결과 */
     body.checked .card.ok{border-color:#10b981;background:#d1fae5}
-    body.checked .card.ok .pick{background:#10b981}
+    body.checked .card.ok .slot-label{background:#10b981}
     body.checked .card.wrong{border-color:#ef4444;background:#fee2e2}
-    body.checked .card.wrong .pick{background:#ef4444}
+    body.checked .card.wrong .slot-label{background:#ef4444}
     body.checked .card .answer{
-      position:absolute;bottom:8px;right:8px;
-      font-size:0.78em;font-weight:900;color:#1f2937;
-      background:rgba(255,255,255,0.92);padding:3px 8px;border-radius:8px;
+      position:absolute;top:8px;right:8px;
+      font-size:0.78em;font-weight:900;color:#065f46;
+      background:rgba(255,255,255,0.92);padding:4px 8px;border-radius:8px;
       display:flex;align-items:center;gap:3px;
     }
+    body.checked .card{cursor:default}
+    body.checked .grid{pointer-events:none}
 
     .extras{
       margin-top:24px;padding:16px;background:rgba(255,255,255,0.6);
@@ -161,6 +162,12 @@
     }
     body.shuffling .card{cursor:wait}
     body.shuffling .grid{pointer-events:none}
+
+    /* 게임 모드 카드 드래그 시각 */
+    body.game .card{cursor:grab}
+    body.game .card:active{cursor:grabbing}
+    .ghost{opacity:0.35}
+    .chosen{transform:scale(1.06)!important;box-shadow:0 14px 28px rgba(99,102,241,0.35)!important;z-index:20}
   </style>
 </head>
 <body class="learn">
@@ -183,7 +190,8 @@
     <!-- 게임 모드: 진행바 -->
     <div class="gamebar" id="gamebar">
       <div class="gamebar-row">
-        <div class="gamebar-status" id="status">🎮 1번이라고 생각하는 카드를 눌러요</div>
+        <div class="gamebar-status" id="status">🎮 카드를 드래그해서 1번부터 8번 자리까지 옮겨요!</div>
+        <button class="btn btn-primary" id="checkBtn" onclick="checkAnswers()">✅ 정답 확인</button>
         <button class="btn btn-warn" onclick="reshuffle()">🔁 다시 섞기</button>
         <button class="btn btn-gray" onclick="exitGame()">📖 학습으로</button>
       </div>
@@ -198,7 +206,7 @@
         <div class="card-name">천지창조</div>
         <div class="card-sub">8일 흐름</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="2" data-href="https://game-adam-8scenes.pages.dev" data-name="아담">
         <div class="card-num">2</div>
@@ -206,7 +214,7 @@
         <div class="card-name">아담</div>
         <div class="card-sub">사람 창조</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="3" data-href="https://game-cain-abel-8scenes.pages.dev" data-name="가인과 아벨">
         <div class="card-num">3</div>
@@ -214,7 +222,7 @@
         <div class="card-name">가인과 아벨</div>
         <div class="card-sub">죄가 들어옴</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="4" data-href="https://game-noah-8scenes.pages.dev" data-name="노아">
         <div class="card-num">4</div>
@@ -222,7 +230,7 @@
         <div class="card-name">노아</div>
         <div class="card-sub">방주와 무지개</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="5" data-href="https://game-abraham-8scenes.pages.dev" data-name="아브라함">
         <div class="card-num">5</div>
@@ -230,7 +238,7 @@
         <div class="card-name">아브라함</div>
         <div class="card-sub">별처럼 많은 약속</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="6" data-href="https://game-isaac-8scenes.pages.dev" data-name="이삭">
         <div class="card-num">6</div>
@@ -238,7 +246,7 @@
         <div class="card-name">이삭</div>
         <div class="card-sub">약속의 아들</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="7" data-href="https://game-jacob-8scenes.pages.dev" data-name="야곱">
         <div class="card-num">7</div>
@@ -246,7 +254,7 @@
         <div class="card-name">야곱</div>
         <div class="card-sub">이스라엘이 됨</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
       <div class="card" data-id="8" data-href="https://game-joseph-8scenes.pages.dev" data-name="요셉">
         <div class="card-num">8</div>
@@ -254,7 +262,7 @@
         <div class="card-name">요셉</div>
         <div class="card-sub">꿈과 애굽</div>
         <div class="card-cta">게임하기</div>
-        <div class="pick"></div>
+        <div class="slot-label"></div>
       </div>
     </div>
 
@@ -297,8 +305,15 @@
     const grid = document.getElementById('grid');
     const cards = Array.from(grid.querySelectorAll('.card'));
     const originalOrder = cards.map(c => c);  // DOM 순서 백업
-    let pickOrder = [];  // 사용자 클릭 id 순서
     let checked = false;
+    let sortableInst = null;
+
+    // 자리 번호 라벨 갱신 (현재 DOM 순서 기준 1~8)
+    function updateSlotLabels(){
+      Array.from(grid.children).forEach((c, i) => {
+        c.querySelector('.slot-label').textContent = i + 1;
+      });
+    }
 
     function shuffle(arr){
       const a = [...arr];
@@ -344,14 +359,14 @@
     async function startGame(){
       document.body.classList.remove('learn','checked');
       document.body.classList.add('game','shuffling');
-      pickOrder = [];
       checked = false;
       cards.forEach(c => {
-        c.classList.remove('picked','ok','wrong');
-        const pick = c.querySelector('.pick'); pick.textContent = '';
+        c.classList.remove('ok','wrong');
         const old = c.querySelector('.answer'); if(old) old.remove();
       });
+      destroySortable();
       document.getElementById('scoreboard').style.display = 'none';
+      document.getElementById('checkBtn').style.display = '';
       window.scrollTo({top:0, behavior:'smooth'});
 
       // 5단계 셔플 × 1초 = 5초 애니메이션
@@ -365,19 +380,40 @@
       }
 
       document.body.classList.remove('shuffling');
-      document.getElementById('status').textContent = '🎮 1번이라고 생각하는 카드를 눌러요';
+      updateSlotLabels();
+      enableSortable();
+      document.getElementById('status').textContent = '🎮 카드를 드래그해서 1번부터 8번 자리까지 옮겨요!';
+    }
+
+    function enableSortable(){
+      if (sortableInst) return;
+      sortableInst = window.Sortable.create(grid, {
+        animation: 220,
+        delay: 120,
+        delayOnTouchOnly: true,
+        ghostClass: 'ghost',
+        chosenClass: 'chosen',
+        scroll: true,
+        scrollSensitivity: 80,
+        scrollSpeed: 14,
+        bubbleScroll: true,
+        onEnd: () => updateSlotLabels(),
+      });
+    }
+    function destroySortable(){
+      if (sortableInst) { sortableInst.destroy(); sortableInst = null; }
     }
 
     async function exitGame(){
       document.body.classList.remove('checked');
+      destroySortable();
       cards.forEach(c => {
-        c.classList.remove('picked','ok','wrong');
-        const pick = c.querySelector('.pick'); pick.textContent = '';
+        c.classList.remove('ok','wrong');
         const old = c.querySelector('.answer'); if(old) old.remove();
       });
       // 학습 모드로 부드럽게 정렬
       document.body.classList.add('shuffling');
-      await flipShuffle(originalOrder);
+      await flipShuffle(originalOrder, 800);
       document.body.classList.remove('game','shuffling');
       document.body.classList.add('learn');
     }
@@ -387,23 +423,26 @@
     }
 
     function checkAnswers(){
+      if (checked) return;
       checked = true;
+      destroySortable();
       document.body.classList.add('checked');
+      document.getElementById('checkBtn').style.display = 'none';
       let correct = 0;
-      cards.forEach(c => {
+      // 현재 DOM 순서 = 사용자가 놓은 자리. 자리 i (1-base)에 카드의 dataset.id가 같으면 정답.
+      const placed = Array.from(grid.children);
+      placed.forEach((c, i) => {
+        const slotNum = i + 1;
         const realId = Number(c.dataset.id);
-        const pickedIdx = pickOrder.indexOf(realId);
-        if(pickedIdx < 0) return;
-        const pickedNum = pickedIdx + 1;
-        if(pickedNum === realId){
+        if (slotNum === realId) {
           c.classList.add('ok');
           correct++;
         } else {
           c.classList.add('wrong');
-          // 정답 라벨 추가
+          // 우상단에 진짜 자리 표시 (예: 정답 5번 자리)
           const ans = document.createElement('div');
           ans.className = 'answer';
-          ans.innerHTML = '✓ ' + realId;
+          ans.innerHTML = '정답: ' + realId + '번';
           c.appendChild(ans);
         }
       });
@@ -424,45 +463,11 @@
 
     cards.forEach(c => {
       c.addEventListener('click', e => {
-        if(document.body.classList.contains('learn')){
-          // 학습 모드: 미시 게임 진입
+        // 학습 모드일 때만 카드 클릭 = 미시 게임 진입
+        if (document.body.classList.contains('learn')) {
           window.location.href = c.dataset.href;
-          return;
         }
-        // 게임 모드
-        if(checked) return;
-        const id = Number(c.dataset.id);
-        const idx = pickOrder.indexOf(id);
-        if(idx >= 0){
-          // 이미 선택된 카드 → 취소 + 뒤 카드들 번호 -1
-          pickOrder.splice(idx, 1);
-          c.classList.remove('picked');
-          c.querySelector('.pick').textContent = '';
-          // 뒤 카드 번호 갱신
-          pickOrder.forEach((pid, i) => {
-            const card = cards.find(x => Number(x.dataset.id)===pid);
-            card.querySelector('.pick').textContent = i+1;
-          });
-        } else {
-          if(pickOrder.length >= 8) return;
-          pickOrder.push(id);
-          c.classList.add('picked');
-          c.querySelector('.pick').textContent = pickOrder.length;
-        }
-        // 진행 상태
-        const remain = 8 - pickOrder.length;
-        if(remain === 0){
-          // 즉시 lock 후 자동 채점 (사이 클릭 차단)
-          checked = true;
-          document.body.classList.add('shuffling');
-          document.getElementById('status').textContent = '✨ 채점 중...';
-          setTimeout(() => {
-            document.body.classList.remove('shuffling');
-            checkAnswers();
-          }, 350);
-        } else {
-          document.getElementById('status').textContent = `🎮 ${pickOrder.length}/8 — ${pickOrder.length+1}번이라고 생각하는 카드를 눌러요`;
-        }
+        // 게임 모드는 드래그로만 작동 (클릭 무시)
       });
     });
   </script>
